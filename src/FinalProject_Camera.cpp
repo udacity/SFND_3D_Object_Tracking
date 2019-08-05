@@ -92,6 +92,7 @@ int main(int argc, const char *argv[])
         DataFrame frame;
         frame.cameraImg = img;
         dataBuffer.push_back(frame);
+        if (dataBuffer.size() > dataBufferSize) dataBuffer.erase(dataBuffer.begin());
 
         cout << "#1 : LOAD IMAGE INTO BUFFER done" << endl;
 
@@ -151,14 +152,18 @@ int main(int argc, const char *argv[])
         // extract 2D keypoints from current image
         vector<cv::KeyPoint> keypoints; // create empty feature list for current image
         string detectorType = "SHITOMASI";
-
+        double time;
         if (detectorType.compare("SHITOMASI") == 0)
         {
-            detKeypointsShiTomasi(keypoints, imgGray, false);
+            detKeypointsShiTomasi(keypoints, imgGray, time, false);
+        }
+        else if (detectorType.compare("HARRIS") == 0)
+        {
+            detKeypointsHarris(keypoints, imgGray, time, false);
         }
         else
         {
-            //...
+            detKeypointsModern(keypoints, imgGray, detectorType, time, false);
         }
 
         // optional : limit number of keypoints (helpful for debugging and learning)
