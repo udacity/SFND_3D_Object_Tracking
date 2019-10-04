@@ -20,6 +20,13 @@
 #include "lidarData.hpp"
 #include "camFusion.hpp"
 
+//.. Start modified by hkkim
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+//.. End modified by hkkim
+
+
 using namespace std;
 
 /* MAIN PROGRAM */
@@ -74,6 +81,31 @@ int main(int argc, const char *argv[])
     vector<DataFrame> dataBuffer; // list of data frames which are held in memory at the same time
     bool bVis = false;            // visualize results
 
+    //.. Start modified by hkkim
+    ofstream det_des_matches;
+    det_des_matches.open ("../FP_6_Performance_Evaluation_2.csv");
+    det_des_matches << "Detector_type, Descriptor_type, ImgNumber, TTC_Lidar, TTC_Camera"  << endl;
+
+    std::vector<std::string> detector_type_names = { "SHITOMASI", "FAST", "BRISK", "ORB", "AKAZE"};
+    std::vector<std::string> descriptor_type_names = {"BRISK", "BRIEF", "ORB", "FREAK"};
+
+    bool bSave = true;
+    string SaveImageFolder;
+
+    for(auto detector_type_name:detector_type_names) // start loop detector_types
+    {
+        for(auto descriptor_type_name:descriptor_type_names) // start loop descriptor_types
+        {
+            dataBuffer.clear();
+
+            if(bSave)
+            {
+                SaveImageFolder = "../resultsImages/" + detector_type_name + "_" + descriptor_type_name;
+                const char *cp_SaveImageFolder = SaveImageFolder.c_str();
+                mkdir(cp_SaveImageFolder,0755);
+            }
+    //.. End modified by hkkim
+
     /* MAIN LOOP OVER ALL IMAGES */
 
     for (size_t imgIndex = 0; imgIndex <= imgEndIndex - imgStartIndex; imgIndex+=imgStepWidth)
@@ -91,9 +123,21 @@ int main(int argc, const char *argv[])
         // push image into data frame buffer
         DataFrame frame;
         frame.cameraImg = img;
+
+        //.. Start modified by hkkim: Data Buffer Optimization
+        if (  dataBuffer.size()+1 > dataBufferSize)
+        {
+            dataBuffer.erase(dataBuffer.begin());
+            cout << "REPLACE IMAGE IN BUFFER done" << endl;
+        }
+        //.. End modified by hkkim: Data Buffer Optimization
         dataBuffer.push_back(frame);
 
         cout << "#1 : LOAD IMAGE INTO BUFFER done" << endl;
+
+        //.. Start modified by hkkim
+        det_des_matches << detector_type_name << ", " << descriptor_type_name << ", " << imgNumber.str() << ", ";
+        //.. End modified by hkkim
 
 
         /* DETECT & CLASSIFY OBJECTS */
@@ -129,7 +173,7 @@ int main(int argc, const char *argv[])
         clusterLidarWithROI((dataBuffer.end()-1)->boundingBoxes, (dataBuffer.end() - 1)->lidarPoints, shrinkFactor, P_rect_00, R_rect_00, RT);
 
         // Visualize 3D objects
-        bVis = true;
+        bVis = false;//true;
         if(bVis)
         {
             show3DObjects((dataBuffer.end()-1)->boundingBoxes, cv::Size(4.0, 20.0), cv::Size(2000, 2000), true);
@@ -140,7 +184,9 @@ int main(int argc, const char *argv[])
         
         
         // REMOVE THIS LINE BEFORE PROCEEDING WITH THE FINAL PROJECT
-        continue; // skips directly to the next image without processing what comes beneath
+        //.. Start modified by hkkim
+        // continue; // skips directly to the next image without processing what comes beneath
+        //.. End modified by hkkim
 
         /* DETECT IMAGE KEYPOINTS */
 
@@ -150,16 +196,40 @@ int main(int argc, const char *argv[])
 
         // extract 2D keypoints from current image
         vector<cv::KeyPoint> keypoints; // create empty feature list for current image
-        string detectorType = "SHITOMASI";
+
+        //.. Start modified by hkkim
+        string detectorType = detector_type_name; //"SHITOMASI";
+        //.. End modified by hkkim
 
         if (detectorType.compare("SHITOMASI") == 0)
         {
             detKeypointsShiTomasi(keypoints, imgGray, false);
         }
+        //.. Start modified by hkkim
+        // else
+        // {
+            //...
+        // }
+
+        // detectorType = HARRIS
+        else if (detectorType.compare("HARRIS") == 0)
+        {
+            detKeypointsHarris(keypoints, imgGray, false);
+        }
+        // Modern detector types, detectorType = FAST, BRISK, ORB, AKAZE, SIFT
+        else if (detectorType.compare("FAST")  == 0 ||
+                detectorType.compare("BRISK") == 0 ||
+                detectorType.compare("ORB")   == 0 ||
+                detectorType.compare("AKAZE") == 0 ||
+                detectorType.compare("SIFT")  == 0)
+        {
+            detKeypointsModern(keypoints, imgGray, detectorType, false);
+        }
         else
         {
-            //...
+            throw invalid_argument(detectorType + " is not a valid detectorType. Try SHITOMASI, HARRIS, FAST, BRISK, ORB, AKAZE, SIFT.");
         }
+        //.. End modified by hkkim
 
         // optional : limit number of keypoints (helpful for debugging and learning)
         bool bLimitKpts = false;
@@ -184,7 +254,11 @@ int main(int argc, const char *argv[])
         /* EXTRACT KEYPOINT DESCRIPTORS */
 
         cv::Mat descriptors;
-        string descriptorType = "BRISK"; // BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
+
+        //.. Start modified by hkkim
+        string descriptorType = descriptor_type_name; //"BRISK"; // BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
+        //.. End modified by hkkim
+
         descKeypoints((dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->cameraImg, descriptors, descriptorType);
 
         // push descriptors for current frame to end of data buffer
@@ -265,9 +339,13 @@ int main(int argc, const char *argv[])
                     double ttcCamera;
                     clusterKptMatchesWithROI(*currBB, (dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->kptMatches);                    
                     computeTTCCamera((dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints, currBB->kptMatches, sensorFrameRate, ttcCamera);
+
+                    //.. Start modified by hkkim
+                    det_des_matches << ttcLidar << ", " << ttcCamera;
+                    //.. End modified by hkkim
                     //// EOF STUDENT ASSIGNMENT
 
-                    bVis = true;
+                    bVis = false;//true;
                     if (bVis)
                     {
                         cv::Mat visImg = (dataBuffer.end() - 1)->cameraImg.clone();
@@ -286,12 +364,40 @@ int main(int argc, const char *argv[])
                     }
                     bVis = false;
 
+                    //.. Start modified by hkkim
+                    if (bSave)
+                    {
+                        cv::Mat visImg = (dataBuffer.end() - 1)->cameraImg.clone();
+                        showLidarImgOverlay(visImg, currBB->lidarPoints, P_rect_00, R_rect_00, RT, &visImg);
+                        cv::rectangle(visImg, cv::Point(currBB->roi.x, currBB->roi.y), cv::Point(currBB->roi.x + currBB->roi.width, currBB->roi.y + currBB->roi.height), cv::Scalar(0, 255, 0), 2);
+
+                        char str[200];
+                        sprintf(str, "TTC Lidar : %f s, TTC Camera : %f s", ttcLidar, ttcCamera);
+                        putText(visImg, str, cv::Point2f(80, 50), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0,0,255));
+
+                        string saveImgFullFilename = SaveImageFolder + "/000000" + imgNumber.str() + imgFileType;
+                        const char *cp_saveImgFullFilename = saveImgFullFilename.c_str();
+                        cv::imwrite(cp_saveImgFullFilename, visImg);
+                    }
+                    //.. End modified by hkkim
+
                 } // eof TTC computation
             } // eof loop over all BB matches            
 
         }
+        //.. Start modified by hkkim
+        det_des_matches << endl;
+        //.. End modified by hkkim
 
     } // eof loop over all images
+
+    //.. Start modified by hkkim
+    det_des_matches << endl;
+    }// eof loop over descriptor_types
+    }// eof loop over detector_types
+
+    det_des_matches.close();
+    //.. End modified by hkkim
 
     return 0;
 }
