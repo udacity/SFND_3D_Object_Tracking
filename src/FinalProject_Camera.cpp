@@ -20,11 +20,11 @@
 #include "lidarData.hpp"
 #include "camFusion.hpp"
 
-//.. Start modified by hkkim
+//.. Start modified by yskim 
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-//.. End modified by hkkim
+//.. End modified by yskim
 
 
 using namespace std;
@@ -81,7 +81,7 @@ int main(int argc, const char *argv[])
     vector<DataFrame> dataBuffer; // list of data frames which are held in memory at the same time
     bool bVis = false;            // visualize results
 
-    //.. Start modified by hkkim
+    //.. Start modified by yskim
     ofstream det_des_matches;
     det_des_matches.open ("../FP_6_Performance_Evaluation_2.csv");
     det_des_matches << "Detector_type, Descriptor_type, ImgNumber, TTC_Lidar, TTC_Camera"  << endl;
@@ -104,7 +104,7 @@ int main(int argc, const char *argv[])
                 const char *cp_SaveImageFolder = SaveImageFolder.c_str();
                 mkdir(cp_SaveImageFolder,0755);
             }
-    //.. End modified by hkkim
+    //.. End modified by yskim
 
     /* MAIN LOOP OVER ALL IMAGES */
 
@@ -124,20 +124,20 @@ int main(int argc, const char *argv[])
         DataFrame frame;
         frame.cameraImg = img;
 
-        //.. Start modified by hkkim: Data Buffer Optimization
+        //.. Start modified by yskim: Data Buffer Optimization
         if (  dataBuffer.size()+1 > dataBufferSize)
         {
             dataBuffer.erase(dataBuffer.begin());
             cout << "REPLACE IMAGE IN BUFFER done" << endl;
         }
-        //.. End modified by hkkim: Data Buffer Optimization
+        //.. End modified by yskim: Data Buffer Optimization
         dataBuffer.push_back(frame);
 
         cout << "#1 : LOAD IMAGE INTO BUFFER done" << endl;
 
-        //.. Start modified by hkkim
+        //.. Start modified by yskim
         det_des_matches << detector_type_name << ", " << descriptor_type_name << ", " << imgNumber.str() << ", ";
-        //.. End modified by hkkim
+        //.. End modified by yskim
 
 
         /* DETECT & CLASSIFY OBJECTS */
@@ -184,9 +184,9 @@ int main(int argc, const char *argv[])
         
         
         // REMOVE THIS LINE BEFORE PROCEEDING WITH THE FINAL PROJECT
-        //.. Start modified by hkkim
+        //.. Start modified by yskim
         // continue; // skips directly to the next image without processing what comes beneath
-        //.. End modified by hkkim
+        //.. End modified by yskim
 
         /* DETECT IMAGE KEYPOINTS */
 
@@ -197,19 +197,15 @@ int main(int argc, const char *argv[])
         // extract 2D keypoints from current image
         vector<cv::KeyPoint> keypoints; // create empty feature list for current image
 
-        //.. Start modified by hkkim
+        //.. Start modified by yskim
         string detectorType = detector_type_name; //"SHITOMASI";
-        //.. End modified by hkkim
+        //.. End modified by yskim
 
         if (detectorType.compare("SHITOMASI") == 0)
         {
             detKeypointsShiTomasi(keypoints, imgGray, false);
         }
-        //.. Start modified by hkkim
-        // else
-        // {
-            //...
-        // }
+        //.. Start modified by yskim
 
         // detectorType = HARRIS
         else if (detectorType.compare("HARRIS") == 0)
@@ -229,7 +225,7 @@ int main(int argc, const char *argv[])
         {
             throw invalid_argument(detectorType + " is not a valid detectorType. Try SHITOMASI, HARRIS, FAST, BRISK, ORB, AKAZE, SIFT.");
         }
-        //.. End modified by hkkim
+        //.. End modified by yskim
 
         // optional : limit number of keypoints (helpful for debugging and learning)
         bool bLimitKpts = false;
@@ -255,9 +251,9 @@ int main(int argc, const char *argv[])
 
         cv::Mat descriptors;
 
-        //.. Start modified by hkkim
+        //.. Start modified by yskim
         string descriptorType = descriptor_type_name; //"BRISK"; // BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
-        //.. End modified by hkkim
+        //.. End modified by yskim
 
         descKeypoints((dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->cameraImg, descriptors, descriptorType);
 
@@ -340,9 +336,9 @@ int main(int argc, const char *argv[])
                     clusterKptMatchesWithROI(*currBB, (dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->kptMatches);                    
                     computeTTCCamera((dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints, currBB->kptMatches, sensorFrameRate, ttcCamera);
 
-                    //.. Start modified by hkkim
+                    //.. Start modified by yskim
                     det_des_matches << ttcLidar << ", " << ttcCamera;
-                    //.. End modified by hkkim
+                    //.. End modified by yskim
                     //// EOF STUDENT ASSIGNMENT
 
                     bVis = false;//true;
@@ -364,7 +360,7 @@ int main(int argc, const char *argv[])
                     }
                     bVis = false;
 
-                    //.. Start modified by hkkim
+                    //.. Start modified by yskim
                     if (bSave)
                     {
                         cv::Mat visImg = (dataBuffer.end() - 1)->cameraImg.clone();
@@ -379,25 +375,25 @@ int main(int argc, const char *argv[])
                         const char *cp_saveImgFullFilename = saveImgFullFilename.c_str();
                         cv::imwrite(cp_saveImgFullFilename, visImg);
                     }
-                    //.. End modified by hkkim
+                    //.. End modified by yskim
 
                 } // eof TTC computation
             } // eof loop over all BB matches            
 
         }
-        //.. Start modified by hkkim
+        //.. Start modified by yskim
         det_des_matches << endl;
-        //.. End modified by hkkim
+        //.. End modified by yskim
 
     } // eof loop over all images
 
-    //.. Start modified by hkkim
+    //.. Start modified by yskim
     det_des_matches << endl;
     }// eof loop over descriptor_types
     }// eof loop over detector_types
 
     det_des_matches.close();
-    //.. End modified by hkkim
+    //.. End modified by yskim
 
     return 0;
 }
