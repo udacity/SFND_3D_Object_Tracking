@@ -121,8 +121,9 @@ void showLidarImgOverlay(cv::Mat &img, std::vector<LidarPoint> &lidarPoints, cv:
 
             Y = P_rect_xx * R_rect_xx * RT * X;
             cv::Point pt;
-            pt.x = Y.at<double>(0, 0) / Y.at<double>(0, 2);
-            pt.y = Y.at<double>(1, 0) / Y.at<double>(0, 2);
+
+            pt.x = Y.at<double>(0, 0) / Y.at<double>(2, 0); 
+            pt.y = Y.at<double>(1, 0) / Y.at<double>(2, 0); 
 
             float val = it->x;
             int red = min(255, (int)(255 * abs((val - maxVal) / maxVal)));
