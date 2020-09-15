@@ -60,7 +60,11 @@ void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<Li
     } // eof loop over all Lidar points
 }
 
-
+/* 
+* The show3DObjects() function below can handle different output image sizes, but the text output has been manually tuned to fit the 2000x2000 size. 
+* However, you can make this function work for other sizes too.
+* For instance, to use a 1000x1000 size, adjusting the text positions by dividing them by 2.
+*/
 void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, cv::Size imageSize, bool bWait)
 {
     // create topview image
