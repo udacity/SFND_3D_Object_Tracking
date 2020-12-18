@@ -2,6 +2,7 @@
 #include <iostream>
 #include <algorithm>
 #include <numeric>
+#include <unordered_map>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
@@ -156,8 +157,59 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     // ...
 }
 
+namespace {
+
+// helper function to filter the matches in the current frame that are inside a given roi
+std::vector<cv::DMatch> getMatchesInsideRoi(const std::vector<cv::KeyPoint>& keypoints, const std::vector<cv::DMatch> &matches, const cv::Rect& roi) {
+    std::vector<cv::DMatch> matchesInsideRoi;
+    for (auto& match : matches) {
+        auto& keypoint = keypoints[match.trainIdx];
+        if (roi.contains(keypoint.pt)) {
+            matchesInsideRoi.push_back(match);
+        }
+    }
+    return matchesInsideRoi;
+}
+
+} // namespace
 
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
 {
-    // ...
+    // for each current frame bounding box...
+    for (const auto& currBoundingBox : currFrame.boundingBoxes) {
+        std::cout << "Finding best match for current frame bounding box " << currBoundingBox.boxID << std::endl;
+        // get matches that are inside the current bounding box
+        const std::vector<cv::DMatch> matchesInsideCurrBox = ::getMatchesInsideRoi(currFrame.keypoints, currFrame.kptMatches, currBoundingBox.roi);
+
+        // then try to find the best matching bounding box from the previous frame w/ the most number of matching keypoints inside prev box
+        std::unordered_map<int, int> prevBoxIdAndNumberOfMatchesMap;
+        for (const auto& prevBoundingBox : prevFrame.boundingBoxes) {
+            // count the number of matching keypoints inside prev frame bounding box roi
+            int prevKeypointsInsideRoiCounter = 0;
+            for (auto& matchInsideCurrBox : matchesInsideCurrBox) {
+                int prevKeypointIndex = matchInsideCurrBox.queryIdx;
+                auto& prevKeypoint = prevFrame.keypoints[prevKeypointIndex];
+                if (prevBoundingBox.roi.contains(prevKeypoint.pt)) {
+                    ++prevKeypointsInsideRoiCounter;
+                }
+            }
+            if (prevKeypointsInsideRoiCounter > 0) {
+                // prev frame bounding box is candidate as best match
+                prevBoxIdAndNumberOfMatchesMap[prevBoundingBox.boxID] = prevKeypointsInsideRoiCounter;
+                std::cout << "Candidate found. Previous frame bounding box " << prevBoundingBox.boxID;
+                std::cout << " w/ corresponding matches count " << prevKeypointsInsideRoiCounter << std::endl;
+            }
+        }
+        if (!prevBoxIdAndNumberOfMatchesMap.empty()) {
+          int bestPrevBoxIndex = std::max_element(prevBoxIdAndNumberOfMatchesMap.begin(),
+                                                  prevBoxIdAndNumberOfMatchesMap.end(),
+                                                  [](const std::pair<int, int>& p1, const std::pair<int, int>& p2) {
+                                                      return p1.second < p2.second;}
+                                                  )->first;
+          bbBestMatches[currBoundingBox.boxID] = bestPrevBoxIndex;
+          std::cout << "BEST MATCH is previous frame bounding box "
+                    << bestPrevBoxIndex << std::endl;
+        }
+        std::cout << "----" << std::endl;
+    }
 }
