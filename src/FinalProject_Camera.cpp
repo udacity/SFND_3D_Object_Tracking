@@ -226,13 +226,14 @@ int main(int argc, const char *argv[])
             /* COMPUTE TTC ON OBJECT IN FRONT */
 
             // loop over all BB match pairs
+            // PMORALES: the implemented matchBoundingBoxes function returns a map of current frame box ID (pair.first), and previous frame box ID (pair.second).
             for (auto it1 = (dataBuffer.end() - 1)->bbMatches.begin(); it1 != (dataBuffer.end() - 1)->bbMatches.end(); ++it1)
             {
                 // find bounding boxes associates with current match
                 BoundingBox *prevBB, *currBB;
                 for (auto it2 = (dataBuffer.end() - 1)->boundingBoxes.begin(); it2 != (dataBuffer.end() - 1)->boundingBoxes.end(); ++it2)
                 {
-                    if (it1->second == it2->boxID) // check wether current match partner corresponds to this BB
+                    if (it1->first == it2->boxID) // check wether current match partner corresponds to this BB
                     {
                         currBB = &(*it2);
                     }
@@ -240,7 +241,7 @@ int main(int argc, const char *argv[])
 
                 for (auto it2 = (dataBuffer.end() - 2)->boundingBoxes.begin(); it2 != (dataBuffer.end() - 2)->boundingBoxes.end(); ++it2)
                 {
-                    if (it1->first == it2->boxID) // check wether current match partner corresponds to this BB
+                    if (it1->second == it2->boxID) // check wether current match partner corresponds to this BB
                     {
                         prevBB = &(*it2);
                     }
