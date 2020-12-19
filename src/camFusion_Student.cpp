@@ -205,7 +205,7 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
             double prevDistance = cv::norm(prevKeypoint.pt - prevKeypointOther.pt);
 
             // compute ratio between current and previous frame distance
-            static const double minDistance = 0;
+            static const double minDistance = 50;
             if (prevDistance > 0.0 && currDistance >= minDistance) {
                 distanceRatios.push_back(currDistance / prevDistance);
             }
