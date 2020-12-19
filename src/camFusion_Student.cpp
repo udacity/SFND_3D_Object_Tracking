@@ -188,7 +188,48 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
 void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, 
                       std::vector<cv::DMatch> kptMatches, double frameRate, double &TTC, cv::Mat *visImg)
 {
-    // ...
+    // computes distance of keypoints to each other keypoint
+    // then for each distance, compute the ratio between current and previos frame value
+    std::vector<double> distanceRatios;
+    for (size_t i = 0; i < kptMatches.size(); ++i) {
+        auto& currKeypoint = kptsCurr[kptMatches[i].trainIdx];
+        auto& prevKeypoint = kptsPrev[kptMatches[i].queryIdx];
+        for (size_t j = 0; j < kptMatches.size(); ++j) {
+            // skip if same keypoint
+            if (i == j) {
+                continue;
+            }
+
+            // compute distance betweek keypoints
+            auto& currKeypointOther = kptsCurr[kptMatches[j].trainIdx];
+            auto& prevKeypointOther = kptsPrev[kptMatches[j].queryIdx];
+            double currDistance = cv::norm(currKeypoint.pt - currKeypointOther.pt);
+            double prevDistance = cv::norm(prevKeypoint.pt - prevKeypointOther.pt);
+
+            // compute ratio between current and previous frame distance
+            static const double minDistance = 0;
+            if (prevDistance > 0.0 && currDistance >= minDistance) {
+                distanceRatios.push_back(currDistance / prevDistance);
+            }
+        }
+    }
+    if (distanceRatios.empty())
+    {
+        TTC = NAN;
+        return;
+    }
+
+    // compute TTC using median distance ratio
+    std::sort(distanceRatios.begin(), distanceRatios.end());
+    double medianDistRatio;
+    size_t size = distanceRatios.size();
+    if (size % 2 == 0) {
+      medianDistRatio = (distanceRatios[size / 2 - 1] + distanceRatios[size / 2]) / 2.0;
+    } else {
+      medianDistRatio = distanceRatios[size / 2];
+    }
+    double deltaT = 1 / frameRate;
+    TTC = -deltaT / (1 - medianDistRatio);
 }
 
 namespace {
