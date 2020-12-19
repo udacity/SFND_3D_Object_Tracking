@@ -262,7 +262,7 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
         // Filter outlier points by getting the N% nearest points and using the median value as the nearest point.
         // This does not give the nearest point exactly but it assumes that the cluster of N% nearest points are close enough together,
         // such that any point in that cluster (for this case the median value) can represent the nearest point.
-        const double samplePercentage = 0.5;
+        const double samplePercentage = 0.05;
         prevNearestX = medianOfNearestXs(lidarPointsPrev, samplePercentage);
         currNearestX = medianOfNearestXs(lidarPointsCurr, samplePercentage);
     } else {
