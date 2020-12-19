@@ -198,7 +198,7 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
                 continue;
             }
 
-            // compute distance betweek keypoints
+            // compute distance between keypoints
             auto& currKeypointOther = kptsCurr[kptMatches[j].trainIdx];
             auto& prevKeypointOther = kptsPrev[kptMatches[j].queryIdx];
             double currDistance = cv::norm(currKeypoint.pt - currKeypointOther.pt);
