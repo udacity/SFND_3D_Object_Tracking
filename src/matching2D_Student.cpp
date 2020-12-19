@@ -88,7 +88,7 @@ void descKeypoints(vector<cv::KeyPoint> &keypoints, cv::Mat &img, cv::Mat &descr
     } else if (descriptorType == "AKAZE") {
         extractor = cv::AKAZE::create();
     } else if (descriptorType == "SIFT") {
-        extractor = cv::SIFT::create();
+        extractor = cv::xfeatures2d::SIFT::create();
     } else {
         throw std::runtime_error("Unsupported descriptor type. Supported descriptors are: BRIEF, ORB, FREAK, AKAZE, SIFT.");
     }
@@ -221,7 +221,7 @@ void detKeypointsModern(std::vector<cv::KeyPoint> &keypoints, cv::Mat &img, std:
     } else if (detectorType == "AKAZE") {
         detector = cv::AKAZE::create();
     } else if (detectorType == "SIFT") {
-        detector = cv::SIFT::create();
+        detector = cv::xfeatures2d::SIFT::create();
     } else {
         throw std::runtime_error("Unsupported modern detector. Supported detectors are: FAST, BRISK, ORB, AKAZE, SIFT.");
     }
