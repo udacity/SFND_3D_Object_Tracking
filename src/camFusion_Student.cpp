@@ -154,7 +154,22 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
 {
-    // ...
+    // use nearest X as distance
+    auto compareNearerX = [](const LidarPoint& p1, const LidarPoint& p2) {
+        return p1.x < p2.x;
+    };
+    double prevNearestX = std::min_element(lidarPointsPrev.begin(), lidarPointsPrev.end(), compareNearerX)->x;
+    double currNearestX = std::min_element(lidarPointsCurr.begin(), lidarPointsCurr.end(), compareNearerX)->x;
+
+    // compute TTC using constant velocity model
+    const double deltaX = prevNearestX - currNearestX;
+    const double deltaT = 1.0 / frameRate;
+    const double velocity = deltaX / deltaT;
+    TTC = currNearestX / velocity;
+
+    std::cout << "delta T " << deltaT << "s" <<std::endl;
+    std::cout << "nearest point prev X " << prevNearestX << std::endl;
+    std::cout << "nearest point curr X " << currNearestX << std::endl;
 }
 
 namespace {
