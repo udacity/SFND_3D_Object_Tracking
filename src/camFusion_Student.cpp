@@ -150,16 +150,48 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
     // ...
 }
 
+namespace {
+
+// Get the median value of the N% nearest points.
+double medianOfNearestXs(const std::vector<LidarPoint>& points, double samplePercentage) {
+    // sort by nearest X
+    auto compareNearerX = [](const LidarPoint& p1, const LidarPoint& p2) {
+        return p1.x < p2.x;
+    };
+    std::vector<LidarPoint> sortedPoints = points;
+    std::sort(sortedPoints.begin(), sortedPoints.end(), compareNearerX);
+
+    // resize to remove elements at the end of the vector
+    size_t sampleSize = sortedPoints.size() * samplePercentage;
+    sortedPoints.resize(sampleSize);
+
+    // get the median value
+    return sortedPoints[sampleSize / 2].x;
+}
+
+} // namespace
 
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
 {
-    // use nearest X as distance
-    auto compareNearerX = [](const LidarPoint& p1, const LidarPoint& p2) {
-        return p1.x < p2.x;
-    };
-    double prevNearestX = std::min_element(lidarPointsPrev.begin(), lidarPointsPrev.end(), compareNearerX)->x;
-    double currNearestX = std::min_element(lidarPointsCurr.begin(), lidarPointsCurr.end(), compareNearerX)->x;
+    bool filterOutliers = true;
+    double prevNearestX;
+    double currNearestX;
+
+    if (filterOutliers) {
+        // Filter outlier points by getting the N% nearest points and using the median value as the nearest point.
+        // This does not give the nearest point exactly but it assumes that the cluster of N% nearest points are close enough together,
+        // such that any point in that cluster (for this case the median value) can represent the nearest point.
+        const double samplePercentage = 0.5;
+        prevNearestX = medianOfNearestXs(lidarPointsPrev, samplePercentage);
+        currNearestX = medianOfNearestXs(lidarPointsCurr, samplePercentage);
+    } else {
+        auto compareNearerX = [](const LidarPoint& p1, const LidarPoint& p2) {
+            return p1.x < p2.x;
+        };
+        prevNearestX = std::min_element(lidarPointsPrev.begin(), lidarPointsPrev.end(), compareNearerX)->x;
+        currNearestX = std::min_element(lidarPointsCurr.begin(), lidarPointsCurr.end(), compareNearerX)->x;
+    }
 
     // compute TTC using constant velocity model
     const double deltaX = prevNearestX - currNearestX;
