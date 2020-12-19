@@ -155,7 +155,7 @@ std::vector<cv::DMatch> getMatchesInsideRoi(const std::vector<cv::KeyPoint>& key
 void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
 {
     // get all matches inside bounding box, bounding box is size is shrunk to remove some keypoints that don't belong to the target object
-    cv::Rect smallerBox;
+    cv::Rect smallerBox = boundingBox.roi;
     smallerBox.width = boundingBox.roi.width * 0.9;
     smallerBox.height = boundingBox.roi.height * 0.9;
     const std::vector<cv::DMatch> matchesInsideBox = ::getMatchesInsideRoi(kptsCurr, kptMatches, smallerBox);
@@ -164,18 +164,16 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
     std::vector<double> euclideanDistances;
     for (auto& match : matchesInsideBox) {
         auto& currKeypoint = kptsCurr[match.trainIdx];
-        auto& prevKeypoint = kptsCurr[match.queryIdx];
+        auto& prevKeypoint = kptsPrev[match.queryIdx];
         euclideanDistances.push_back(cv::norm(currKeypoint.pt - prevKeypoint.pt));
     }
     const double totalEuclideanDistance = std::accumulate(euclideanDistances.begin(), euclideanDistances.end(), 0.0);
     const double averageEuclideanDistance = totalEuclideanDistance / euclideanDistances.size();
 
     // filter out matches that are far from the mean (outliers)
-    const double thresholdFromAverage = averageEuclideanDistance * 0.2;
+    const double thresholdDistance = averageEuclideanDistance * 1.5;
     for (size_t i = 0; i < euclideanDistances.size(); ++i) {
-        const double d = euclideanDistances[i];
-        const double deltaFromAverage = std::fabs(averageEuclideanDistance - d);
-        if (deltaFromAverage < thresholdFromAverage) {
+        if (euclideanDistances[i] < thresholdDistance) {
             auto& match = matchesInsideBox[i];
             boundingBox.kptMatches.push_back(match);
             boundingBox.keypoints.push_back(kptsCurr[match.trainIdx]);
