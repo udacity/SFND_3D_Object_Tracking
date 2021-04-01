@@ -156,6 +156,45 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
 {
     // ...
+    /**
+     * your task is to complete the TTC for all matched 3D objects based on lidar measurements
+     * alone
+     * when you look for the closest point in x, try to be robust against outliers which might
+     *  be way too close, and thus lead to faulty estimates of the TTC
+     * see Lesson 3.1 `Estimating TTC with Lidar`
+    **/
+
+    // auxiliary variables
+    double dT = 1/ frameRate;        // time between two measurements in seconds
+    //this is based on the horizontal FOV
+    double laneWidth = 4.0; // assumed width of the ego lane
+
+    // find closest distance to Lidar points within ego lane
+    double minXPrev = 1e9, minXCurr = 1e9;
+    for (auto it = lidarPointsPrev.begin(); it != lidarPointsPrev.end(); ++it)
+    {
+        
+        if (abs(it->y) <= laneWidth / 2.0)
+        { // 3D point within ego lane?
+            minXPrev = minXPrev > it->x ? it->x : minXPrev;
+        }
+    }
+
+    for (auto it = lidarPointsCurr.begin(); it != lidarPointsCurr.end(); ++it)
+    {
+
+        if (abs(it->y) <= laneWidth / 2.0)
+        { // 3D point within ego lane?
+            minXCurr = minXCurr > it->x ? it->x : minXCurr;
+        }
+    }
+
+    // compute TTC from both measurements
+    TTC = minXCurr * dT / (minXPrev - minXCurr);
+
+    cout<< "Lidar TTC: "<< TTC << " s" << endl;
+
+
 }
 
 
@@ -271,8 +310,8 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
         // get the mode, the highest number of occurrences
         // https://www.geeksforgeeks.org/stddistance-in-c/
         auto maxCount = std::max_element(count.begin(), count.end());
-        cout<< "check type" << endl;
-        cout<< typeid(std::max_element(count.begin(), count.end())).name() << endl;
+       // cout<< "check type" << endl;
+       // cout<< typeid(std::max_element(count.begin(), count.end())).name() << endl;
         
         int mode = std::distance(count.begin(), maxCount);
 
