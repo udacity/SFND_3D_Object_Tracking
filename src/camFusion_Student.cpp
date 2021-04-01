@@ -7,6 +7,8 @@
 
 #include "camFusion.hpp"
 #include "dataStructures.h"
+#include <typeinfo>
+#include <algorithm> // max_element
 
 using namespace std;
 
@@ -160,4 +162,125 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
 {
     // ...
-}
+    /*
+     * This basic idea is to use the keypoint matches between the previous and the current images.
+     * So you might want to make an outer loop of those.Then you should try to find out by which
+     * bounding boxes key points are enclosed, both on the previous, and in the current currFrame
+     * those will be your potential match candidates whose box ids you could store in, let's say,
+     * a `multimap`
+     * 
+     * once you've completed the loop of our key point matches, you could try to find all the match
+     * candidates in the multimap, which share the same bounding box id in the previous frame, and
+     * just count them
+     * 
+     * In the end, you could assicuate tge bounding boxes with the highest number of occurrences,
+     * but of course, it's up to you how to solve this problem
+     * 
+     * At the end of match bounding boxes, you must return your results to the main function, by 
+     * storing the box ids of all matched pairs, in the map called bbBestMatches 
+     * 
+     * 
+     * ///////////// Steps /////////////////
+     *  inner and outer loops (done)
+     *  multimap (done)
+     *  find all the match candidates in the multimap
+     * 
+     * 
+     struct DataFrame { // represents the available sensor information at the same time instance
+    
+        cv::Mat cameraImg; // camera image
+        
+        std::vector<cv::KeyPoint> keypoints; // 2D keypoints within camera image
+        cv::Mat descriptors; // keypoint descriptors
+        std::vector<cv::DMatch> kptMatches; // keypoint matches between previous and current frame
+        std::vector<LidarPoint> lidarPoints;
+
+        std::vector<BoundingBox> boundingBoxes; // ROI around detected objects in 2D image coordinates
+        std::map<int,int> bbMatches; // bounding box matches between previous and current frame
+    };
+
+
+        struct BoundingBox { // bounding box around a classified object (contains both 2D and 3D data)
+        
+        int boxID; // unique identifier for this bounding box
+        int trackID; // unique identifier for the track to which this bounding box belongs
+        
+        cv::Rect roi; // 2D region-of-interest in image coordinates
+        int classID; // ID based on class file provided to YOLO framework
+        double confidence; // classification trust
+
+        std::vector<LidarPoint> lidarPoints; // Lidar 3D points which project into 2D image roi
+        std::vector<cv::KeyPoint> keypoints; // keypoints enclosed by 2D roi
+        std::vector<cv::DMatch> kptMatches; // keypoint matches enclosed by 2D roi
+    };
+    */
+
+    // multimap for previous and current frames 
+    multimap<int, int> boxesMap;
+    
+    for ( auto match : matches){
+
+
+        cv::KeyPoint prevKP = prevFrame.keypoints[match.queryIdx];
+        cv::KeyPoint currKP = currFrame.keypoints[match.trainIdx];
+
+        int prevIdx, currIdx;
+        // initialization
+        prevIdx = currIdx = -1;
+
+        
+        for ( auto box: prevFrame.boundingBoxes){
+            if(box.roi.contains(prevKP.pt)){
+                prevIdx = box.boxID;
+                break;
+            }
+        }
+
+        for ( auto box: currFrame.boundingBoxes){
+            if(box.roi.contains(currKP.pt)){
+                currIdx = box.boxID;
+                break;
+            }
+        }
+
+
+    boxesMap.insert({currIdx, prevIdx});
+
+    }
+
+    // now we have a map that contains boxes id in the current
+    // frames and its correponding in the previous frame
+    int currSize = currFrame.boundingBoxes.size();
+    int prevSize = prevFrame.boundingBoxes.size();
+
+
+    // let's find the best matches for each
+    for (int i=0; i<currSize; i++){
+        // https://en.cppreference.com/w/cpp/algorithm/equal_range
+        auto similarBoxes = boxesMap.equal_range(i);
+        // https://www.geeksforgeeks.org/initialize-a-vector-in-cpp-different-ways/
+        vector <int> count(prevSize, 0);
+
+        for (auto pair = similarBoxes.first; pair!=similarBoxes.second; pair++){
+            if((*pair).second != -1){
+                count[(*pair).second] += 1;
+            }
+
+        }
+
+        // get the mode, the highest number of occurrences
+        // https://www.geeksforgeeks.org/stddistance-in-c/
+        auto maxCount = std::max_element(count.begin(), count.end());
+        cout<< "check type" << endl;
+        cout<< typeid(std::max_element(count.begin(), count.end())).name() << endl;
+        
+        int mode = std::distance(count.begin(), maxCount);
+
+        bbBestMatches.insert({mode,i});
+
+        //print data
+
+        cout<< "BoxID: "<< i << "& Mode: " << mode << endl;
+
+    }
+    }

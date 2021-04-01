@@ -6,7 +6,7 @@
 // #include <fstream>
 // #include <string>
 
-//#include "helper.h"
+// #include "helper.h"
 
 using namespace std;
 // using cv::DMatch;
@@ -34,7 +34,7 @@ enum Dectector
 // reference to descriptor code
 // https://github.com/oreillymedia/Learning-OpenCV-3_examples/blob/master/example_16-02.cpp
 
-// void write_a(string filename, string str)
+// void //write_a(string filename, string str)
 // {
 
 //     FILE *fp;
@@ -133,8 +133,8 @@ void matchDescriptors(std::vector<cv::KeyPoint> &kPtsSource, std::vector<cv::Key
     }
 
     cout << "# keypoints: " << matches.size() << endl;
-    // write_a("results.csv", "# keypoints: ");
-    // write_a("results.csv", ",");
+    // //write_a("results.csv", "# keypoints: ");
+    // //write_a("results.csv", ",");
     //write_a("results.csv", to_string(matches.size()));
     //write_a("results.csv", "\n");
 
@@ -211,8 +211,8 @@ void descKeypoints(vector<cv::KeyPoint> &keypoints, cv::Mat &img, cv::Mat &descr
     cout << descriptorType << " descriptor extraction in " << 1000 * t / 1.0 << " ms" << endl;
     //writeCSV("results.csv", descriptorType);
     //write_file("results.csv", descriptorType);
-    // write_a("results.csv", "descriptor extraction");
-    // write_a("results.csv", ",");
+    // //write_a("results.csv", "descriptor extraction");
+    // //write_a("results.csv", ",");
     //write_a("results.csv", to_string(t));
     //write_a("results.csv", ",");
 }
@@ -245,10 +245,10 @@ void detKeypointsShiTomasi(vector<cv::KeyPoint> &keypoints, cv::Mat &img, bool b
     }
     t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
     cout << "Shi-Tomasi detection with n=" << keypoints.size() << " keypoints in " << 1000 * t / 1.0 << " ms" << endl;
-    // write_a("results.csv", "detector extraction");
-    // write_a("results.csv", ",");
-    // write_a("results.csv", to_string(t));
-    // write_a("results.csv", ",");
+    // //write_a("results.csv", "detector extraction");
+    // //write_a("results.csv", ",");
+    //write_a("results.csv", to_string(t));
+    //write_a("results.csv", ",");
 
     int count = 0;
     // visualize results
@@ -333,10 +333,10 @@ void detKeypointsModern(std::vector<cv::KeyPoint> &keypoints, cv::Mat &img, std:
     detector->detect(img, keypoints);
     t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
     cout << detectorType << " detection with n: " << keypoints.size() << " keypoints in " << 1000 * t / 1.0 << " ms" << endl;
-    // write_a("results.csv", "detector extraction");
-    // write_a("results.csv", ",");
-    // write_a("results.csv", to_string(t));
-    // write_a("results.csv", ",");
+    // //write_a("results.csv", "detector extraction");
+    // //write_a("results.csv", ",");
+    //write_a("results.csv", to_string(t));
+    //write_a("results.csv", ",");
 
 windowName = detectorType;
 int count = 0;
@@ -408,10 +408,10 @@ void detKeypointsHarris(std::vector<cv::KeyPoint> &keypoints, cv::Mat &img, bool
 
     t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
     cout << "Harris detection with n: " << keypoints.size() << " keypoints in " << 1000 * t / 1.0 << " ms" << endl;
-    // write_a("results.csv", "detector extraction H");
-    // write_a("results.csv", ",");
-    // write_a("results.csv", to_string(t));
-    // write_a("results.csv", ",");
+    // //write_a("results.csv", "detector extraction H");
+    // //write_a("results.csv", ",");
+    //write_a("results.csv", to_string(t));
+    //write_a("results.csv", ",");
 
 
     int count = 0;
