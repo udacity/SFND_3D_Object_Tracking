@@ -1,7 +1,7 @@
 
 #include <iostream>
 #include <algorithm>
-#include <numeric>
+#include <numeric> // accumulate
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
@@ -11,7 +11,6 @@
 #include <algorithm> // max_element
 
 using namespace std;
-
 
 // Create groups of Lidar points whose projection into the camera falls into the same bounding box
 void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<LidarPoint> &lidarPoints, float shrinkFactor, cv::Mat &P_rect_xx, cv::Mat &R_rect_xx, cv::Mat &RT)
@@ -32,8 +31,8 @@ void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<Li
         Y = P_rect_xx * R_rect_xx * RT * X;
         cv::Point pt;
         // pixel coordinates
-        pt.x = Y.at<double>(0, 0) / Y.at<double>(2, 0); 
-        pt.y = Y.at<double>(1, 0) / Y.at<double>(2, 0); 
+        pt.x = Y.at<double>(0, 0) / Y.at<double>(2, 0);
+        pt.y = Y.at<double>(1, 0) / Y.at<double>(2, 0);
 
         vector<vector<BoundingBox>::iterator> enclosingBoxes; // pointers to all bounding boxes which enclose the current Lidar point
         for (vector<BoundingBox>::iterator it2 = boundingBoxes.begin(); it2 != boundingBoxes.end(); ++it2)
@@ -55,7 +54,7 @@ void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<Li
 
         // check wether point has been enclosed by one or by multiple boxes
         if (enclosingBoxes.size() == 1)
-        { 
+        {
             // add Lidar point to bounding box
             enclosingBoxes[0]->lidarPoints.push_back(*it1);
         }
@@ -73,47 +72,47 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
     // create topview image
     cv::Mat topviewImg(imageSize, CV_8UC3, cv::Scalar(255, 255, 255));
 
-    for(auto it1=boundingBoxes.begin(); it1!=boundingBoxes.end(); ++it1)
+    for (auto it1 = boundingBoxes.begin(); it1 != boundingBoxes.end(); ++it1)
     {
         // create randomized color for current 3D object
         cv::RNG rng(it1->boxID);
-        cv::Scalar currColor = cv::Scalar(rng.uniform(0,150), rng.uniform(0, 150), rng.uniform(0, 150));
+        cv::Scalar currColor = cv::Scalar(rng.uniform(0, 150), rng.uniform(0, 150), rng.uniform(0, 150));
 
         // plot Lidar points into top view image
-        int top=1e8, left=1e8, bottom=0.0, right=0.0; 
-        float xwmin=1e8, ywmin=1e8, ywmax=-1e8;
+        int top = 1e8, left = 1e8, bottom = 0.0, right = 0.0;
+        float xwmin = 1e8, ywmin = 1e8, ywmax = -1e8;
         for (auto it2 = it1->lidarPoints.begin(); it2 != it1->lidarPoints.end(); ++it2)
         {
             // world coordinates
             float xw = (*it2).x; // world position in m with x facing forward from sensor
             float yw = (*it2).y; // world position in m with y facing left from sensor
-            xwmin = xwmin<xw ? xwmin : xw;
-            ywmin = ywmin<yw ? ywmin : yw;
-            ywmax = ywmax>yw ? ywmax : yw;
+            xwmin = xwmin < xw ? xwmin : xw;
+            ywmin = ywmin < yw ? ywmin : yw;
+            ywmax = ywmax > yw ? ywmax : yw;
 
             // top-view coordinates
             int y = (-xw * imageSize.height / worldSize.height) + imageSize.height;
             int x = (-yw * imageSize.width / worldSize.width) + imageSize.width / 2;
 
             // find enclosing rectangle
-            top = top<y ? top : y;
-            left = left<x ? left : x;
-            bottom = bottom>y ? bottom : y;
-            right = right>x ? right : x;
+            top = top < y ? top : y;
+            left = left < x ? left : x;
+            bottom = bottom > y ? bottom : y;
+            right = right > x ? right : x;
 
             // draw individual point
             cv::circle(topviewImg, cv::Point(x, y), 4, currColor, -1);
         }
 
         // draw enclosing rectangle
-        cv::rectangle(topviewImg, cv::Point(left, top), cv::Point(right, bottom),cv::Scalar(0,0,0), 2);
+        cv::rectangle(topviewImg, cv::Point(left, top), cv::Point(right, bottom), cv::Scalar(0, 0, 0), 2);
 
         // augment object with some key data
         char str1[200], str2[200];
         sprintf(str1, "id=%d, #pts=%d", it1->boxID, (int)it1->lidarPoints.size());
-        putText(topviewImg, str1, cv::Point2f(left-250, bottom+50), cv::FONT_ITALIC, 2, currColor);
-        sprintf(str2, "xmin=%2.2f m, yw=%2.2f m", xwmin, ywmax-ywmin);
-        putText(topviewImg, str2, cv::Point2f(left-250, bottom+125), cv::FONT_ITALIC, 2, currColor);  
+        putText(topviewImg, str1, cv::Point2f(left - 250, bottom + 50), cv::FONT_ITALIC, 2, currColor);
+        sprintf(str2, "xmin=%2.2f m, yw=%2.2f m", xwmin, ywmax - ywmin);
+        putText(topviewImg, str2, cv::Point2f(left - 250, bottom + 125), cv::FONT_ITALIC, 2, currColor);
     }
 
     // plot distance markers
@@ -130,27 +129,85 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
     cv::namedWindow(windowName, 1);
     cv::imshow(windowName, topviewImg);
 
-    if(bWait)
+    if (bWait)
     {
         cv::waitKey(0); // wait for key to be pressed
     }
 }
 
+double calcMean(std::vector<double> x)
+{
+    double mean = 0;
+    if (x.size() > 1)
+        return 0;
+    for (int i = 0; i < x.size(); i++)
+    {
+        mean += x[i];
+    }
+    return mean / x.size();
+}
+
+double calcStddev(double mean, std::vector<double> x)
+{
+    if (x.size() < 1)
+    {
+        return 0;
+    }
+    // cout<< "x before " << x << endl;
+    for (int i = 0; i < x.size(); i++)
+    {
+        x[i] -= mean;
+    }
+    // cout<< "x after " << x << endl;
+
+    double num = std::pow(std::accumulate(x.begin(), x.end(), x[0]), 2);
+    return sqrt(num / x.size());
+}
 
 // associate a given bounding box with the keypoints it contains
 void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
 {
     // ...
+    /**
+     * Steps:
+     * 1) calc distances
+     * 2) calc mean
+     * 3) calc standard dev
+     * */
+
+    std::map<vector<cv::DMatch>::iterator,double> theMap;
+    // calc distances
+    for (auto it = kptMatches.begin(); it != kptMatches.end(); it++)
+    {
+        auto &currKpt = kptsCurr[(*it).trainIdx];
+        auto &prevKpt = kptsPrev[(*it).queryIdx];
+
+        if (boundingBox.roi.contains(currKpt.pt))
+        {
+            // https://cppsecrets.com/users/168511510411111711412197115105110104975764103109971051084699111109/C00-OpenCV-cvnorm.php           
+            // https://www.techiedelight.com/print-keys-values-map-cpp/
+            theMap[it] = cv::norm(currKpt.pt - prevKpt.pt);
+        }
+    }
+
+    // calc mean
+    double mean = calcMean(euclideanDistances);
+    // calc stddev
+    double stddev = calcStddev(mean, euclideanDistances);
+    // for each distance, if it is below the threshold, push it
+    for (auto const& pair: theMap) {
+        if ((pair.second - mean) < stddev){
+            boundingBox.kptMatches.push_back(*pair.first);
+        }
+    }
+
 }
-
-
 // Compute time-to-collision (TTC) based on keypoint correspondences in successive images
-void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, 
+void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr,
                       std::vector<cv::DMatch> kptMatches, double frameRate, double &TTC, cv::Mat *visImg)
 {
     // ...
 }
-
 
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
@@ -165,22 +222,22 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     **/
 
     // auxiliary variables
-    double dT = 1/ frameRate;        // time between two measurements in seconds
+    double dT = 1 / frameRate; // time between two measurements in seconds
     //this is based on the horizontal FOV
     double laneWidth = 4.0; // assumed width of the ego lane
 
     // find closest distance to Lidar points within ego lane
     double minXPrev = 1e9, minXCurr = 1e9;
-    for (auto it = lidarPointsPrev.begin(); it != lidarPointsPrev.end(); ++it)
+    for (auto it = lidarPointsPrev.begin(); it != lidarPointsPrev.end(); it++)
     {
-        
+
         if (abs(it->y) <= laneWidth / 2.0)
         { // 3D point within ego lane?
             minXPrev = minXPrev > it->x ? it->x : minXPrev;
         }
     }
 
-    for (auto it = lidarPointsCurr.begin(); it != lidarPointsCurr.end(); ++it)
+    for (auto it = lidarPointsCurr.begin(); it != lidarPointsCurr.end(); it++)
     {
 
         if (abs(it->y) <= laneWidth / 2.0)
@@ -192,11 +249,8 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     // compute TTC from both measurements
     TTC = minXCurr * dT / (minXPrev - minXCurr);
 
-    cout<< "Lidar TTC: "<< TTC << " s" << endl;
-
-
+    cout << "Lidar TTC: " << TTC << " s" << endl;
 }
-
 
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
 {
@@ -254,11 +308,11 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
     };
     */
 
-    // multimap for previous and current frames 
+    // multimap for previous and current frames
     multimap<int, int> boxesMap;
-    
-    for ( auto match : matches){
 
+    for (auto match : matches)
+    {
 
         cv::KeyPoint prevKP = prevFrame.keypoints[match.queryIdx];
         cv::KeyPoint currKP = currFrame.keypoints[match.trainIdx];
@@ -267,24 +321,25 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
         // initialization
         prevIdx = currIdx = -1;
 
-        
-        for ( auto box: prevFrame.boundingBoxes){
-            if(box.roi.contains(prevKP.pt)){
+        for (auto box : prevFrame.boundingBoxes)
+        {
+            if (box.roi.contains(prevKP.pt))
+            {
                 prevIdx = box.boxID;
                 break;
             }
         }
 
-        for ( auto box: currFrame.boundingBoxes){
-            if(box.roi.contains(currKP.pt)){
+        for (auto box : currFrame.boundingBoxes)
+        {
+            if (box.roi.contains(currKP.pt))
+            {
                 currIdx = box.boxID;
                 break;
             }
         }
 
-
-    boxesMap.insert({currIdx, prevIdx});
-
+        boxesMap.insert({currIdx, prevIdx});
     }
 
     // now we have a map that contains boxes id in the current
@@ -292,34 +347,34 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
     int currSize = currFrame.boundingBoxes.size();
     int prevSize = prevFrame.boundingBoxes.size();
 
-
     // let's find the best matches for each
-    for (int i=0; i<currSize; i++){
+    for (int i = 0; i < currSize; i++)
+    {
         // https://en.cppreference.com/w/cpp/algorithm/equal_range
         auto similarBoxes = boxesMap.equal_range(i);
         // https://www.geeksforgeeks.org/initialize-a-vector-in-cpp-different-ways/
-        vector <int> count(prevSize, 0);
+        vector<int> count(prevSize, 0);
 
-        for (auto pair = similarBoxes.first; pair!=similarBoxes.second; pair++){
-            if((*pair).second != -1){
+        for (auto pair = similarBoxes.first; pair != similarBoxes.second; pair++)
+        {
+            if ((*pair).second != -1)
+            {
                 count[(*pair).second] += 1;
             }
-
         }
 
         // get the mode, the highest number of occurrences
         // https://www.geeksforgeeks.org/stddistance-in-c/
         auto maxCount = std::max_element(count.begin(), count.end());
-       // cout<< "check type" << endl;
-       // cout<< typeid(std::max_element(count.begin(), count.end())).name() << endl;
-        
+        // cout<< "check type" << endl;
+        // cout<< typeid(std::max_element(count.begin(), count.end())).name() << endl;
+
         int mode = std::distance(count.begin(), maxCount);
 
-        bbBestMatches.insert({mode,i});
+        bbBestMatches.insert({mode, i});
 
         //print data
 
-        cout<< "BoxID: "<< i << "& Mode: " << mode << endl;
-
+        cout << "BoxID: " << i << "& Mode: " << mode << endl;
     }
-    }
+}
