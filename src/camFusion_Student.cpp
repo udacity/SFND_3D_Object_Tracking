@@ -9,6 +9,7 @@
 #include "dataStructures.h"
 #include <typeinfo>
 #include <algorithm> // max_element
+#include <limits.h>
 #include "helper.h"
 
 using namespace std;
@@ -165,10 +166,6 @@ double calcStddev(double mean, std::vector<double> x)
     {
         x[i] -= mean;
     }
-    // cout<< "x after " << x << endl;
-    // sqrt(segma(xi-u)^2 / N)
-    //double num = std::pow(std::accumulate(x.begin(), x.end(), x[0]), 2);
-    //num = std::pow(x[i]
     double num = std::accumulate(x.begin(), x.end(), 0, square<double>());
 
     return sqrt(num / x.size());
@@ -218,6 +215,7 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
 
 double getMedianCam(vector<double> x)
 {
+    std::sort(x.begin(), x.end());
     int len = x.size();
     if (len % 2 == 0)
     {
@@ -245,7 +243,7 @@ double getMedian(std::vector<LidarPoint> lidarPoints)
 
     if (len % 2 == 0)
     {
-        return (lidarPoints[len / 2].x + lidarPoints[len / 2 + 1].x) / 2;
+        return (lidarPoints[len / 2].x + lidarPoints[len / 2 - 1].x) / 2;
         // return lidarPoints[len / 2].x;
     }
 
@@ -255,13 +253,7 @@ double getMedian(std::vector<LidarPoint> lidarPoints)
 void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr,
                       std::vector<cv::DMatch> kptMatches, double frameRate, double &TTC, cv::Mat *visImg)
 {
-    // ...
-
-    /**
-     * when computing the camera-based TTC, try not to take all the keypoint correspondences. But, try to be more robust
-     * because there will be more erroneous matches    
-    */
-
+  
     // compute distance ratios between all matched keypoints
     vector<double> distRatios; // stores the distance ratios for all keypoints between curr. and prev. frame
     for (auto it1 = kptMatches.begin(); it1 != kptMatches.end() - 1; ++it1)
@@ -286,8 +278,10 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
 
             if (distPrev > std::numeric_limits<double>::epsilon() && distCurr >= minDist)
             { // avoid division by zero
-
+                // prev/current
                 double distRatio = distCurr / distPrev;
+                //double distRatio = distPrev / distCurr;
+
                 distRatios.push_back(distRatio);
             }
         } // eof inner loop over all matched kpts
@@ -299,41 +293,20 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
         TTC = NAN;
         return;
     }
-
-    // STUDENT TASK (replacement for meanDistRatio)
-    std::sort(distRatios.begin(), distRatios.end());
-    long medIndex = floor(distRatios.size() / 2.0);
-    double medDistRatio = distRatios.size() % 2 == 0 ? (distRatios[medIndex - 1] + distRatios[medIndex]) / 2.0 : distRatios[medIndex]; // compute median dist. ratio to remove outlier influence
+    double medianDistRatio;
+    // getMedianCam
+    medianDistRatio = getMedianCam(distRatios);
     double dT = 1 / frameRate;
-    TTC = -dT / (1 - medDistRatio);
-
-    // //double medianDistRatio;
-    // std::sort(distRatios.begin(), distRatios.end());
-    // // getMedianCam
-    // medianDistRatio = getMedianCam(distRatios);
-    // double dT = 1/frameRate;
-    // TTC = -dT/(1-medianDistRatio);
+    TTC = -dT / (1 - medianDistRatio);
     cout << "Camera TTC: " << TTC << " s" << endl;
     writeLog("results.csv", to_string(TTC));
     writeLog("results.csv", "\n");
-    // EOF STUDENT TASK
 }
 
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
 {
-    // ...
-    /**
-     * your task is to complete the TTC for all matched 3D objects based on lidar measurements
-     * alone
-     * when you look for the closest point in x, try to be robust against outliers which might
-     *  be way too close, and thus lead to faulty estimates of the TTC
-     * see Lesson 3.1 `Estimating TTC with Lidar`
-     * 
-     * some steps:
-     * convert lidarPrev to lidarPrevX, lidarCurr to lidarCurrX
-    **/
-
+    
     // auxiliary variables
     double dT = 1 / frameRate; // time between two measurements in seconds
     //this is based on the horizontal FOV
@@ -349,61 +322,56 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     writeLog("results.csv", ",");
 }
 
+int getPrevBoxID(DataFrame prevFrame, cv::DMatch match)
+{
+    cv::KeyPoint prevKP = prevFrame.keypoints[match.queryIdx];
+    for (auto box : prevFrame.boundingBoxes)
+    {
+        if (box.roi.contains(prevKP.pt))
+        {
+            return box.boxID;
+        }
+    }
+    return -1;
+}
+
+int getCurrBoxID(DataFrame currFrame, cv::DMatch match)
+{
+    cv::KeyPoint currKP = currFrame.keypoints[match.trainIdx];
+    for (auto box : currFrame.boundingBoxes)
+    {
+        if (box.roi.contains(currKP.pt))
+        {
+            return box.boxID;
+        }
+    }
+    return -1;
+}
+
+int getMaxElement(vector<int> x)
+{
+
+    int max = INT_MIN;
+    int index = 0;
+    for (int i = 0; i < x.size(); i++)
+    {
+        if (x[i] < max)
+        {
+            max = x[i];
+            index = i;
+        }
+    }
+
+    return index;
+}
+
+int getMode(vector<int> count)
+{
+    auto maxCount = std::max_element(count.begin(), count.end());
+    return std::distance(count.begin(), maxCount);
+}
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
 {
-    // ...
-    /*
-     * This basic idea is to use the keypoint matches between the previous and the current images.
-     * So you might want to make an outer loop of those.Then you should try to find out by which
-     * bounding boxes key points are enclosed, both on the previous, and in the current currFrame
-     * those will be your potential match candidates whose box ids you could store in, let's say,
-     * a `multimap`
-     * 
-     * once you've completed the loop of our key point matches, you could try to find all the match
-     * candidates in the multimap, which share the same bounding box id in the previous frame, and
-     * just count them
-     * 
-     * In the end, you could assicuate tge bounding boxes with the highest number of occurrences,
-     * but of course, it's up to you how to solve this problem
-     * 
-     * At the end of match bounding boxes, you must return your results to the main function, by 
-     * storing the box ids of all matched pairs, in the map called bbBestMatches 
-     * 
-     * 
-     * ///////////// Steps /////////////////
-     *  inner and outer loops (done)
-     *  multimap (done)
-     *  find all the match candidates in the multimap
-     * 
-     * 
-     struct DataFrame { // represents the available sensor information at the same time instance
-    
-        cv::Mat cameraImg; // camera image
-        
-        std::vector<cv::KeyPoint> keypoints; // 2D keypoints within camera image
-        cv::Mat descriptors; // keypoint descriptors
-        std::vector<cv::DMatch> kptMatches; // keypoint matches between previous and current frame
-        std::vector<LidarPoint> lidarPoints;
-
-        std::vector<BoundingBox> boundingBoxes; // ROI around detected objects in 2D image coordinates
-        std::map<int,int> bbMatches; // bounding box matches between previous and current frame
-    };
-
-
-        struct BoundingBox { // bounding box around a classified object (contains both 2D and 3D data)
-        
-        int boxID; // unique identifier for this bounding box
-        int trackID; // unique identifier for the track to which this bounding box belongs
-        
-        cv::Rect roi; // 2D region-of-interest in image coordinates
-        int classID; // ID based on class file provided to YOLO framework
-        double confidence; // classification trust
-
-        std::vector<LidarPoint> lidarPoints; // Lidar 3D points which project into 2D image roi
-        std::vector<cv::KeyPoint> keypoints; // keypoints enclosed by 2D roi
-        std::vector<cv::DMatch> kptMatches; // keypoint matches enclosed by 2D roi
-    };
-    */
 
     // multimap for previous and current frames
     multimap<int, int> boxesMap;
@@ -418,24 +386,8 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
         // initialization
         prevIdx = currIdx = -1;
 
-        for (auto box : prevFrame.boundingBoxes)
-        {
-            if (box.roi.contains(prevKP.pt))
-            {
-                prevIdx = box.boxID;
-                break;
-            }
-        }
-
-        for (auto box : currFrame.boundingBoxes)
-        {
-            if (box.roi.contains(currKP.pt))
-            {
-                currIdx = box.boxID;
-                break;
-            }
-        }
-
+        prevIdx = getPrevBoxID(prevFrame, match);
+        currIdx = getCurrBoxID(currFrame, match);
         boxesMap.insert({currIdx, prevIdx});
     }
 
@@ -456,21 +408,10 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
         {
             if ((*pair).second != -1)
             {
-                count[(*pair).second] += 1;
+                count[(*pair).second]++;
             }
         }
 
-        // get the mode, the highest number of occurrences
-        // https://www.geeksforgeeks.org/stddistance-in-c/
-        auto maxCount = std::max_element(count.begin(), count.end());
-        // cout<< "check type" << endl;
-        // cout<< typeid(std::max_element(count.begin(), count.end())).name() << endl;
-
-        int mode = std::distance(count.begin(), maxCount);
-
-        bbBestMatches.insert({mode, i});
-
-        // print data
-        // cout << "BoxID: " << i << "& Mode: " << mode << endl;
+        bbBestMatches.insert({getMode(count), i});
     }
 }
