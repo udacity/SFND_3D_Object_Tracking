@@ -138,14 +138,18 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 double calcMean(std::vector<double> x)
 {
     double mean = 0;
-    if (x.size() > 1)
-        return 0;
-    for (int i = 0; i < x.size(); i++)
-    {
-        mean += x[i];
-    }
-    return mean / x.size();
+    if (x.size() > 1) return 0;
+    return std::accumulate(x.begin(), x.end(), x[0])/x.size();
 }
+
+
+// https://stackoverflow.com/questions/1326118/sum-of-square-of-each-elements-in-the-vector-using-for-each
+template<typename T>
+struct square{
+    T operator()(const T& Left, const T& Right)const{
+        return (Left + Right*Right);
+    }
+};
 
 double calcStddev(double mean, std::vector<double> x)
 {
@@ -159,8 +163,11 @@ double calcStddev(double mean, std::vector<double> x)
         x[i] -= mean;
     }
     // cout<< "x after " << x << endl;
+    // sqrt(segma(xi-u)^2 / N)
+    //double num = std::pow(std::accumulate(x.begin(), x.end(), x[0]), 2);
+    //num = std::pow(x[i]
+    double num = std::accumulate(x.begin(), x.end(), 0, square<double>());
 
-    double num = std::pow(std::accumulate(x.begin(), x.end(), x[0]), 2);
     return sqrt(num / x.size());
 }
 
@@ -204,6 +211,12 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
     }
 
 }
+
+double getMedianCam(vector<double> x){
+    int len = x.size();
+    if (len %2 == 0){return (x[(len-1)/2] + x[(len)/2])/2;}
+    return x[(len)/2];
+}
 // Compute time-to-collision (TTC) based on keypoint correspondences in successive images
 void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr,
                       std::vector<cv::DMatch> kptMatches, double frameRate, double &TTC, cv::Mat *visImg)
@@ -214,7 +227,6 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
      * when computing the camera-based TTC, try not to take all the keypoint correspondences. But, try to be more robust
      * because there will be more erroneous matches    
     */
-
 
     // compute distance ratios between all matched keypoints
     vector<double> distRatios; // stores the distance ratios for all keypoints between curr. and prev. frame
@@ -259,9 +271,15 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
     std::sort(distRatios.begin(), distRatios.end());
     long medIndex = floor(distRatios.size() / 2.0);
     double medDistRatio = distRatios.size() % 2 == 0 ? (distRatios[medIndex - 1] + distRatios[medIndex]) / 2.0 : distRatios[medIndex]; // compute median dist. ratio to remove outlier influence
-
     double dT = 1 / frameRate;
     TTC = -dT / (1 - medDistRatio);
+
+    // //double medianDistRatio;
+    // std::sort(distRatios.begin(), distRatios.end());
+    // // getMedianCam
+    // medianDistRatio = getMedianCam(distRatios);
+    // double dT = 1/frameRate;
+    // TTC = -dT/(1-medianDistRatio);
     cout << "Camera TTC: " << TTC << " s" << endl;
 
     // EOF STUDENT TASK
@@ -432,7 +450,6 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
         bbBestMatches.insert({mode, i});
 
         //print data
-
-        cout << "BoxID: " << i << "& Mode: " << mode << endl;
+        //cout << "BoxID: " << i << "& Mode: " << mode << endl;
     }
 }
