@@ -4,11 +4,12 @@
 #include <numeric> // accumulate
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-
+#include <string.h>
 #include "camFusion.hpp"
 #include "dataStructures.h"
 #include <typeinfo>
 #include <algorithm> // max_element
+#include "helper.h"
 
 using namespace std;
 
@@ -138,16 +139,18 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 double calcMean(std::vector<double> x)
 {
     double mean = 0;
-    if (x.size() > 1) return 0;
-    return std::accumulate(x.begin(), x.end(), x[0])/x.size();
+    if (x.size() > 1)
+        return 0;
+    return std::accumulate(x.begin(), x.end(), x[0]) / x.size();
 }
 
-
 // https://stackoverflow.com/questions/1326118/sum-of-square-of-each-elements-in-the-vector-using-for-each
-template<typename T>
-struct square{
-    T operator()(const T& Left, const T& Right)const{
-        return (Left + Right*Right);
+template <typename T>
+struct square
+{
+    T operator()(const T &Left, const T &Right) const
+    {
+        return (Left + Right * Right);
     }
 };
 
@@ -182,7 +185,7 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
      * 3) calc standard dev
      * */
 
-    std::map<vector<cv::DMatch>::iterator,double> theMap;
+    std::map<vector<cv::DMatch>::iterator, double> theMap;
     std::vector<double> euclideanDistances;
     // calc distances
     for (auto it = kptMatches.begin(); it != kptMatches.end(); it++)
@@ -192,7 +195,7 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
 
         if (boundingBox.roi.contains(currKpt.pt))
         {
-            // https://cppsecrets.com/users/168511510411111711412197115105110104975764103109971051084699111109/C00-OpenCV-cvnorm.php           
+            // https://cppsecrets.com/users/168511510411111711412197115105110104975764103109971051084699111109/C00-OpenCV-cvnorm.php
             // https://www.techiedelight.com/print-keys-values-map-cpp/
             theMap[it] = cv::norm(currKpt.pt - prevKpt.pt);
             euclideanDistances.push_back(cv::norm(currKpt.pt - prevKpt.pt));
@@ -204,27 +207,32 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
     // calc stddev
     double stddev = calcStddev(mean, euclideanDistances);
     // for each distance, if it is below the threshold, push it
-    for (auto const& pair: theMap) {
-        if ((pair.second - mean) < stddev){
+    for (auto const &pair : theMap)
+    {
+        if ((pair.second - mean) < stddev)
+        {
             boundingBox.kptMatches.push_back(*pair.first);
         }
     }
-
 }
 
-double getMedianCam(vector<double> x){
+double getMedianCam(vector<double> x)
+{
     int len = x.size();
-    if (len %2 == 0){return (x[(len-1)/2] + x[(len)/2])/2;}
-    return x[(len)/2];
+    if (len % 2 == 0)
+    {
+        return (x[(len - 1) / 2] + x[(len) / 2]) / 2;
+    }
+    return x[(len) / 2];
 }
 
 bool compare(LidarPoint a, LidarPoint b)
 {
-	//for descending order replace with a.roll >b.roll
-	if(a.x < b.x)		
-		return 1;
-	else
-		return 0;
+    //for descending order replace with a.roll >b.roll
+    if (a.x < b.x)
+        return 1;
+    else
+        return 0;
 }
 
 double getMedian(std::vector<LidarPoint> lidarPoints)
@@ -237,7 +245,7 @@ double getMedian(std::vector<LidarPoint> lidarPoints)
 
     if (len % 2 == 0)
     {
-        return (lidarPoints[len/2].x + lidarPoints[len/2 + 1].x)/2;
+        return (lidarPoints[len / 2].x + lidarPoints[len / 2 + 1].x) / 2;
         // return lidarPoints[len / 2].x;
     }
 
@@ -292,7 +300,6 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
         return;
     }
 
-
     // STUDENT TASK (replacement for meanDistRatio)
     std::sort(distRatios.begin(), distRatios.end());
     long medIndex = floor(distRatios.size() / 2.0);
@@ -307,7 +314,8 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
     // double dT = 1/frameRate;
     // TTC = -dT/(1-medianDistRatio);
     cout << "Camera TTC: " << TTC << " s" << endl;
-
+    writeLog("results.csv", to_string(TTC));
+    writeLog("results.csv", "\n");
     // EOF STUDENT TASK
 }
 
@@ -334,10 +342,11 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     double minXPrev = getMedian(lidarPointsPrev);
     double minXCurr = getMedian(lidarPointsCurr);
 
-
     // compute TTC from both measurements
     TTC = minXCurr * dT / (minXPrev - minXCurr);
     cout << "Lidar TTC: " << TTC << " s" << endl;
+    writeLog("results.csv", to_string(TTC));
+    writeLog("results.csv", ",");
 }
 
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
